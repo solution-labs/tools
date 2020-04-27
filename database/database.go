@@ -1,4 +1,4 @@
-package solutionlabs_tools
+package database
 
 import (
 	"database/sql"
