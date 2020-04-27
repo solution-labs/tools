@@ -28,6 +28,10 @@ func GCPSetup() {
 	setup("DB_PASSWORD")
 	setup("DB_DATABASE")
 
+	if len(os.Getenv("DB_HOST")) == 0 || len(os.Getenv("DB_USERNAME")) == 0 || len(os.Getenv("DB_PASSWORD")) == 0 || len(os.Getenv("DB_DATABASE")) == 0 {
+		log.Fatal("Missing Database Variables")
+	}
+
 }
 
 // ConnectInstance
