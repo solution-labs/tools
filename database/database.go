@@ -4,17 +4,40 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	"io/ioutil"
+	"log"
 	"os"
+	"strings"
 )
+
+func setup(variable string) {
+
+	dat, err := ioutil.ReadFile("/run/secrets/" + variable)
+	if err != nil {
+		log.Fatal(err)
+	} else {
+		os.Setenv(variable, strings.Replace(string(dat), "\n", "", -1))
+
+	}
+}
+
+func GCPSetup() {
+
+	setup("DB_HOST")
+	setup("DB_USERNAME")
+	setup("DB_PASSWORD")
+	setup("DB_DATABASE")
+
+}
 
 // ConnectInstance
 func ConnectInstance() (*sql.DB, error) {
 
 	var (
-		dbUser                 = os.Getenv("DB_USER")
-		dbPwd                  = os.Getenv("DB_PASS")
+		dbUser                 = os.Getenv("DB_USERNAME")
+		dbPwd                  = os.Getenv("DB_PASSWORD")
 		instanceConnectionName = os.Getenv("INSTANCE_CONNECTION_NAME")
-		dbName                 = os.Getenv("DB_NAME")
+		dbName                 = os.Getenv("DB_DATABASE")
 	)
 
 	var dbURI string
@@ -33,6 +56,13 @@ func ConnectInstance() (*sql.DB, error) {
 
 	return dbPool, nil
 
+}
+func GCPConnection() (*sql.DB, error) {
+	return ConnectInstance()
+}
+
+func GCPConnectionByIP() (*sql.DB, error) {
+	return Connect()
 }
 
 // Connect
