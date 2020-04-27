@@ -59,7 +59,7 @@ func ReadMessageFromByte(body []byte) (message PubSubMessage, err error) {
 
 	message.Data, err = Base64ToString(msg.Message.Data)
 	if err != nil {
-		log.Println("ReadMessageFromPost:0x01:", err)
+		log.Println("ReadMessage:0x01:", err)
 	}
 	message.Attributes = msg.Message.Attributes
 	message.MessageID = msg.Message.MessageID
@@ -68,9 +68,10 @@ func ReadMessageFromByte(body []byte) (message PubSubMessage, err error) {
 	//2020-04-27T10:59:01.995Z = 2020-04-27 10:59:01
 	msg.Message.PublishTime = strings.Replace(msg.Message.PublishTime, "T", " ", -1)[:19]
 
-	message.PublishTime, err = time.Parse("2001-01-02 15:04:05", msg.Message.PublishTime)
+	message.PublishTime, err = time.Parse("2006-01-02 15:04:05", msg.Message.PublishTime)
 	if err != nil {
-		log.Println("ReadMessageFromPost:0x02:", err)
+		log.Println("ReadMessage:0x02:", err)
+		log.Println("PublishTime:", msg.Message.PublishTime)
 	}
 
 	return message, nil
