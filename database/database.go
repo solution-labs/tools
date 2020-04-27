@@ -21,7 +21,7 @@ func setup(variable string) {
 	}
 }
 
-func GCPSetup() {
+func SwarmSetup() {
 
 	setup("DB_HOST")
 	setup("DB_USERNAME")
