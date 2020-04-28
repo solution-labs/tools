@@ -1,9 +1,10 @@
-package solutionlabs_tools
+package pubsub
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/solution-labs/tools/base64"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -57,7 +58,7 @@ func ReadMessageFromByte(body []byte) (message PubSubMessage, err error) {
 		return message, fmt.Errorf("ReadMessageFromPost:", err)
 	}
 
-	message.Data, err = Base64ToString(msg.Message.Data)
+	message.Data, err = base64.Base64ToString(msg.Message.Data)
 	if err != nil {
 		log.Println("ReadMessage:0x01:", err)
 	}

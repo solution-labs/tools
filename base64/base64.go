@@ -1,4 +1,4 @@
-package solutionlabs_tools
+package base64
 
 import "encoding/base64"
 
