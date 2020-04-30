@@ -46,8 +46,7 @@ func ConnectInstance() (*sql.DB, error) {
 
 	var dbURI string
 	dbURI = fmt.Sprintf("%s:%s@unix(/cloudsql/%s)/%s", dbUser, dbPwd, instanceConnectionName, dbName)
-
-	dbPool, err := sql.Open("mysql", dbURI+"?charset=utf8&parseTime=true&timeout=5s")
+	dbPool, err := sql.Open("mysql", dbURI+"?parseTime=true&timeout=5s")
 
 	if err != nil {
 		return nil, fmt.Errorf("ConnectInstance:sql.Open:1: %v", err)
@@ -72,7 +71,7 @@ func GCPConnectionByIP() (*sql.DB, error) {
 // Connect
 func Connect() (*sql.DB, error) {
 
-	db, err := sql.Open("mysql", os.Getenv("DB_USERNAME")+":"+os.Getenv("DB_PASSWORD")+"@tcp("+os.Getenv("DB_HOST")+":3306)/"+os.Getenv("DB_DATABASE")+"?charset=utf8&parseTime=true&timeout=5s")
+	db, err := sql.Open("mysql", os.Getenv("DB_USERNAME")+":"+os.Getenv("DB_PASSWORD")+"@tcp("+os.Getenv("DB_HOST")+":3306)/"+os.Getenv("DB_DATABASE")+"?parseTime=true&timeout=5s")
 
 	if err != nil {
 		return nil, fmt.Errorf("Connect:sql.Open:1: %v", err)
