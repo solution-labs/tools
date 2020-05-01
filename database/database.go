@@ -4,29 +4,17 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
-	"io/ioutil"
+	"github.com/solution-labs/tools/swarm"
 	"log"
 	"os"
-	"strings"
 )
-
-func setup(variable string) {
-
-	dat, err := ioutil.ReadFile("/run/secrets/" + variable)
-	if err != nil {
-		log.Fatal(err)
-	} else {
-		os.Setenv(variable, strings.Replace(string(dat), "\n", "", -1))
-
-	}
-}
 
 func SwarmSetup() {
 
-	setup("DB_HOST")
-	setup("DB_USERNAME")
-	setup("DB_PASSWORD")
-	setup("DB_DATABASE")
+	swarm.LoadSecret("DB_HOST")
+	swarm.LoadSecret("DB_USERNAME")
+	swarm.LoadSecret("DB_PASSWORD")
+	swarm.LoadSecret("DB_DATABASE")
 
 	if len(os.Getenv("DB_HOST")) == 0 || len(os.Getenv("DB_USERNAME")) == 0 || len(os.Getenv("DB_PASSWORD")) == 0 || len(os.Getenv("DB_DATABASE")) == 0 {
 		log.Fatal("Missing Database Variables")
