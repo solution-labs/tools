@@ -43,6 +43,7 @@ func FromSecret(ctx context.Context, client *secretmanager.Client, secret string
 
 	result, err := client.AccessSecretVersion(ctx, accessRequest)
 	if err != nil {
+		log.Println("Secret:", secret)
 		log.Fatalf("failed to access secret version: %v", err)
 	}
 
