@@ -1,13 +1,24 @@
 package database
 
 import (
+	secretmanager "cloud.google.com/go/secretmanager/apiv1"
+	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/solution-labs/tools/swarm"
+	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 	"log"
 	"os"
 )
+
+type secretDatabase struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Database string `json:"database"`
+	Instance string `json:"instance"`
+}
 
 func SwarmSetup() {
 
@@ -19,6 +30,44 @@ func SwarmSetup() {
 	if len(os.Getenv("DB_HOST")) == 0 || len(os.Getenv("DB_USERNAME")) == 0 || len(os.Getenv("DB_PASSWORD")) == 0 || len(os.Getenv("DB_DATABASE")) == 0 {
 		log.Fatal("Missing Database Variables")
 	}
+
+}
+
+// Read data from Google Secrets Manager
+func FromSecret(ctx context.Context, client *secretmanager.Client, secret string) (db *sql.DB, err error) {
+
+	// Build the request.
+	accessRequest := &secretmanagerpb.AccessSecretVersionRequest{
+		Name: secret,
+	}
+
+	result, err := client.AccessSecretVersion(ctx, accessRequest)
+	if err != nil {
+		log.Fatalf("failed to access secret version: %v", err)
+	}
+
+	credentals := secretDatabase{}
+
+	err = json.Unmarshal(result.Payload.Data, &credentals)
+
+	if err != nil {
+		return db, err
+	}
+
+	var dbURI string
+	dbURI = fmt.Sprintf("%s:%s@unix(/cloudsql/%s)/%s", credentals.Username, credentals.Password, credentals.Instance, credentals.Database)
+	dbPool, err := sql.Open("mysql", dbURI+"?parseTime=true&timeout=5s")
+
+	if err != nil {
+		return nil, fmt.Errorf("ConnectInstance:sql.Open:1: %v", err)
+	}
+
+	_, err = dbPool.Exec("SET SESSION time_zone = 'europe/london'")
+	if err != nil {
+		return nil, fmt.Errorf("ConnectInstance:sql.Open:2: %v", err)
+	}
+
+	return dbPool, err
 
 }
 
