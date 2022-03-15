@@ -39,7 +39,7 @@ func ReadMessageFromString(body string) (message PubSubMessage, err error) {
 	return ReadMessageFromByte([]byte(body))
 }
 
-// ReadMessageFromString takes []byte feed and returns PubSubMessage struct
+// ReadMessageFromByte takes []byte feed and returns PubSubMessage struct
 func ReadMessageFromByte(body []byte) (message PubSubMessage, err error) {
 
 	var msg = struct {
