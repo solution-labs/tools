@@ -7,112 +7,92 @@ import (
 	"encoding/json"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/solution-labs/tools/swarm"
+	log "github.com/sirupsen/logrus"
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
-	"log"
 	"os"
 )
 
-type secretDatabase struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Database string `json:"database"`
-	Instance string `json:"instance"`
+type DatabaseConfiguration struct {
+	Host                   string `json:"public"`
+	PrivateIP              string `json:"private"`
+	Username               string `json:"username"`
+	Password               string `json:"password"`
+	Database               string `json:"database"`
+	InstanceConnectionName string `json:"instance"`
 }
 
-func SwarmSetup() {
+// CredentialsFromSecret  - Read data from Google Secrets Manager
+func CredentialsFromSecret(ctx context.Context, secret string) (dbc DatabaseConfiguration, err error) {
 
-	swarm.LoadSecret("DB_HOST")
-	swarm.LoadSecret("DB_USERNAME")
-	swarm.LoadSecret("DB_PASSWORD")
-	swarm.LoadSecret("DB_DATABASE")
-
-	if len(os.Getenv("DB_HOST")) == 0 || len(os.Getenv("DB_USERNAME")) == 0 || len(os.Getenv("DB_PASSWORD")) == 0 || len(os.Getenv("DB_DATABASE")) == 0 {
-		log.Fatal("Missing Database Variables")
+	client, err := secretmanager.NewClient(ctx)
+	if err != nil {
+		return dbc, fmt.Errorf("failed to create secretmanager client: %w", err)
 	}
 
-}
-
-// Read data from Google Secrets Manager
-func FromSecret(ctx context.Context, client *secretmanager.Client, secret string) (db *sql.DB, err error) {
-
-	// Build the request.
 	accessRequest := &secretmanagerpb.AccessSecretVersionRequest{
 		Name: secret,
 	}
 
 	result, err := client.AccessSecretVersion(ctx, accessRequest)
 	if err != nil {
-		log.Println("Secret:", secret)
-		log.Fatalf("failed to access secret version: %v", err)
+		return dbc, fmt.Errorf("failed to get secret version: %w", err)
 	}
 
-	credentals := secretDatabase{}
+	credentals := DatabaseConfiguration{}
 
 	err = json.Unmarshal(result.Payload.Data, &credentals)
 
 	if err != nil {
-		return db, err
+		return dbc, err
 	}
+
+	return dbc, nil
+}
+
+// Connect - via CloudSQL
+func Connect(dbc DatabaseConfiguration) (*sql.DB, error) {
 
 	var dbURI string
-	dbURI = fmt.Sprintf("%s:%s@unix(/cloudsql/%s)/%s", credentals.Username, credentals.Password, credentals.Instance, credentals.Database)
-	dbPool, err := sql.Open("mysql", dbURI+"?parseTime=true&timeout=5s")
 
-	if err != nil {
-		return nil, fmt.Errorf("ConnectInstance:sql.Open:1: %v", err)
+	sqlPath := "/cloudsql"
+
+	if len(os.Getenv("SQLPROXY")) > 0 {
+		sqlPath = os.Getenv("SQLPROXY")
 	}
 
-	_, err = dbPool.Exec("SET SESSION time_zone = 'europe/london'")
+	dbURI = fmt.Sprintf("%s:%s@unix(%s/%s)/%s?parseTime=true&timeout=5s", dbc.Username, dbc.Password, sqlPath, dbc.InstanceConnectionName, dbc.Database)
+
+	link, err := sql.Open("mysql", dbURI)
 	if err != nil {
-		return nil, fmt.Errorf("ConnectInstance:sql.Open:2: %v", err)
+		return nil, fmt.Errorf("connect:1: %w", err)
 	}
 
-	return dbPool, err
+	_, err = link.Exec("SET time_zone = 'Europe/London'")
+
+	if err != nil {
+		log.Warnln(err)
+	}
+
+	return link, nil
 
 }
 
-// ConnectInstance
-func ConnectInstance() (*sql.DB, error) {
-
-	var (
-		dbUser                 = os.Getenv("DB_USERNAME")
-		dbPwd                  = os.Getenv("DB_PASSWORD")
-		instanceConnectionName = os.Getenv("INSTANCE_CONNECTION_NAME")
-		dbName                 = os.Getenv("DB_DATABASE")
-	)
-
-	var dbURI string
-	dbURI = fmt.Sprintf("%s:%s@unix(/cloudsql/%s)/%s", dbUser, dbPwd, instanceConnectionName, dbName)
-	dbPool, err := sql.Open("mysql", dbURI+"?parseTime=true&timeout=5s")
-
-	if err != nil {
-		return nil, fmt.Errorf("ConnectInstance:sql.Open:1: %v", err)
-	}
-
-	_, err = dbPool.Exec("SET SESSION time_zone = 'europe/london'")
-	if err != nil {
-		return nil, fmt.Errorf("ConnectInstance:sql.Open:2: %v", err)
-	}
-
-	return dbPool, nil
-
-}
-func GCPConnection() (*sql.DB, error) {
-	return ConnectInstance()
+// ConnectIP via IP Address
+func ConnectIP(dbc DatabaseConfiguration) (*sql.DB, error) {
+	return _mysqlConnect(fmt.Sprintf("%s:%s@tcp(%s):3306)/%s?parseTime=true&timeout=5s", dbc.Username, dbc.Password, dbc.Host, dbc.Database))
 }
 
-func GCPConnectionByIP() (*sql.DB, error) {
-	return Connect()
+// ConnectPrivateIP via IP Address
+func ConnectPrivateIP(dbc DatabaseConfiguration) (*sql.DB, error) {
+	return _mysqlConnect(fmt.Sprintf("%s:%s@tcp(%s):3306)/%s?parseTime=true&timeout=5s", dbc.Username, dbc.Password, dbc.PrivateIP, dbc.Database))
 }
 
-// Connect
-func Connect() (*sql.DB, error) {
-
-	db, err := sql.Open("mysql", os.Getenv("DB_USERNAME")+":"+os.Getenv("DB_PASSWORD")+"@tcp("+os.Getenv("DB_HOST")+":3306)/"+os.Getenv("DB_DATABASE")+"?parseTime=true&timeout=5s")
+// _mysqlConnect - Connect via SQL string using TCP/IP
+func _mysqlConnect(dbString string) (*sql.DB, error) {
+	db, err := sql.Open("mysql", dbString)
 
 	if err != nil {
-		return nil, fmt.Errorf("Connect:sql.Open:1: %v", err)
+		return nil, fmt.Errorf("ConnectIP:1: %w", err)
 	}
 
 	_, err = db.Exec("SET SESSION time_zone = 'europe/london'")

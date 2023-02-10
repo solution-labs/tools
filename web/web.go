@@ -1,13 +1,13 @@
 package web
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 )
 
 func ReadBody(resp *http.Request) []byte {
 	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 	return body
 }
 

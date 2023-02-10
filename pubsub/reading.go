@@ -2,11 +2,9 @@ package pubsub
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"github.com/solution-labs/tools/base64"
-	"io/ioutil"
-	"log"
+	"github.com/solution-labs/tools/toolserror"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -24,10 +22,10 @@ type PubSubMessage struct {
 // converts time string to time object
 func ReadMessageFromPost(r *http.Request) (message PubSubMessage, err error) {
 
-	body, _ := ioutil.ReadAll(r.Body)
+	body, _ := io.ReadAll(r.Body)
 
 	if len(body) == 0 {
-		return message, errors.New("missing body")
+		return message, toolserror.Wrap("pubsub:ReadMessageFromPost:[Missing Body]", err)
 	}
 
 	return ReadMessageFromByte(body)
@@ -55,12 +53,12 @@ func ReadMessageFromByte(body []byte) (message PubSubMessage, err error) {
 	err = json.Unmarshal(body, &msg)
 
 	if err != nil {
-		return message, fmt.Errorf("ReadMessageFromPost:", err)
+		return message, toolserror.Wrap("pubsub:ReadMessage:", err)
 	}
 
 	message.Data, err = base64.Base64ToString(msg.Message.Data)
 	if err != nil {
-		log.Println("ReadMessage:0x01:", err)
+		return message, toolserror.Wrap("pubsub:ReadMessage:decode", err)
 	}
 	message.Attributes = msg.Message.Attributes
 	message.MessageID = msg.Message.MessageID
@@ -71,8 +69,7 @@ func ReadMessageFromByte(body []byte) (message PubSubMessage, err error) {
 
 	message.PublishTime, err = time.Parse("2006-01-02 15:04:05", msg.Message.PublishTime)
 	if err != nil {
-		log.Println("ReadMessage:0x02:", err)
-		log.Println("PublishTime:", msg.Message.PublishTime)
+		toolserror.Warning("pubsub:ReadMessage:PublishTime", err)
 	}
 
 	return message, nil
