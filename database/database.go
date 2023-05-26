@@ -7,22 +7,22 @@ import (
 	"encoding/json"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
-	log "github.com/sirupsen/logrus"
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 	"os"
+	"time"
 )
 
 type DatabaseConfiguration struct {
-	Host                   string `json:"public"`
-	PrivateIP              string `json:"private"`
-	Username               string `json:"username"`
-	Password               string `json:"password"`
-	Database               string `json:"database"`
-	InstanceConnectionName string `json:"instance"`
+	Host      string `json:"host"`
+	PrivateIP string `json:"private"`
+	PublicIP  string `json:"public"`
+	Username  string `json:"username"`
+	Password  string `json:"password"`
+	Database  string `json:"database"`
 }
 
-// CredentialsFromSecret  - Read data from Google Secrets Manager
-func CredentialsFromSecret(ctx context.Context, secret string) (dbc DatabaseConfiguration, err error) {
+// CredentialsFromSecretManagerPath  - Read data from Google Secrets Manager
+func CredentialsFromSecretManagerPath(ctx context.Context, secret string) (dbc DatabaseConfiguration, err error) {
 
 	client, err := secretmanager.NewClient(ctx)
 	if err != nil {
@@ -49,29 +49,31 @@ func CredentialsFromSecret(ctx context.Context, secret string) (dbc DatabaseConf
 	return dbc, nil
 }
 
+// GetCredentialsFromSecretEnvironmentVariable --------------------------------------------------------------
+func GetCredentialsFromSecretEnvironmentVariable() (DatabaseConfiguration, error) {
+
+	dbc := DatabaseConfiguration{}
+	if len(os.Getenv("SECRET_PATH")) == 0 {
+		return dbc, fmt.Errorf("missing SECRET_PATH Environment Variable")
+	}
+
+	err := json.Unmarshal([]byte(os.Getenv("SECRET_PATH")), &dbc)
+	if err != nil {
+		return dbc, fmt.Errorf("error parsing SECRET_PATH: %w", err)
+	}
+
+	return dbc, nil
+
+}
+
 // Connect - via CloudSQL
 func Connect(dbc DatabaseConfiguration) (*sql.DB, error) {
 
-	var dbURI string
-
-	sqlPath := "/cloudsql"
-
-	if len(os.Getenv("SQLPROXY")) > 0 {
-		sqlPath = os.Getenv("SQLPROXY")
-	}
-
-	dbURI = fmt.Sprintf("%s:%s@unix(%s/%s)/%s?parseTime=true&timeout=5s", dbc.Username, dbc.Password, sqlPath, dbc.InstanceConnectionName, dbc.Database)
-
-	link, err := sql.Open("mysql", dbURI)
+	link, err := sql.Open("mysql", _mysqlPath(dbc))
 	if err != nil {
 		return nil, fmt.Errorf("connect:1: %w", err)
 	}
-
-	_, err = link.Exec("SET time_zone = 'Europe/London'")
-
-	if err != nil {
-		log.Warnln(err)
-	}
+	_sqlConnectionConfig(link)
 
 	return link, nil
 
@@ -79,12 +81,23 @@ func Connect(dbc DatabaseConfiguration) (*sql.DB, error) {
 
 // ConnectIP via IP Address
 func ConnectIP(dbc DatabaseConfiguration) (*sql.DB, error) {
-	return _mysqlConnect(fmt.Sprintf("%s:%s@tcp(%s):3306)/%s?parseTime=true&timeout=5s", dbc.Username, dbc.Password, dbc.Host, dbc.Database))
+	return _mysqlConnect(fmt.Sprintf("%s:%s@tcp(%s):3306)/%s?parseTime=true&timeout=5s", dbc.Username, dbc.Password, dbc.PublicIP, dbc.Database))
 }
 
 // ConnectPrivateIP via IP Address
 func ConnectPrivateIP(dbc DatabaseConfiguration) (*sql.DB, error) {
 	return _mysqlConnect(fmt.Sprintf("%s:%s@tcp(%s):3306)/%s?parseTime=true&timeout=5s", dbc.Username, dbc.Password, dbc.PrivateIP, dbc.Database))
+}
+
+func _mysqlPath(dbc DatabaseConfiguration) string {
+
+	sqlPath := "/cloudsql"
+
+	if len(os.Getenv("SQLPROXY")) > 0 {
+		sqlPath = os.Getenv("SQLPROXY")
+	}
+
+	return fmt.Sprintf("%s:%s@unix(%s/%s)/%s?parseTime=true&timeout=5s", dbc.Username, dbc.Password, sqlPath, dbc.Host, dbc.Database)
 }
 
 // _mysqlConnect - Connect via SQL string using TCP/IP
@@ -102,4 +115,13 @@ func _mysqlConnect(dbString string) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+// _sqlConnectionConfig ----------------------------------------------------------------------------------
+func _sqlConnectionConfig(link *sql.DB) {
+	_, _ = link.Exec("SET time_zone = 'Europe/London'")
+	// source: https://www.alexedwards.net/blog/configuring-sqldb
+	link.SetMaxOpenConns(5)
+	link.SetConnMaxIdleTime(2)
+	link.SetConnMaxLifetime(1 * time.Hour)
 }

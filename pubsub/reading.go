@@ -1,8 +1,8 @@
 package pubsub
 
 import (
+	"encoding/base64"
 	"encoding/json"
-	"github.com/solution-labs/tools/base64"
 	"github.com/solution-labs/tools/toolserror"
 	"io"
 	"net/http"
@@ -56,10 +56,11 @@ func ReadMessageFromByte(body []byte) (message PubSubMessage, err error) {
 		return message, toolserror.Wrap("pubsub:ReadMessage:", err)
 	}
 
-	message.Data, err = base64.Base64ToString(msg.Message.Data)
+	b4d, err := base64.StdEncoding.DecodeString(msg.Message.Data)
 	if err != nil {
 		return message, toolserror.Wrap("pubsub:ReadMessage:decode", err)
 	}
+	message.Data = string(b4d)
 	message.Attributes = msg.Message.Attributes
 	message.MessageID = msg.Message.MessageID
 	message.Subscription = msg.Subscription

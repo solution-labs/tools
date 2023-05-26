@@ -3,7 +3,6 @@ package firestore
 import (
 	"cloud.google.com/go/firestore"
 	"context"
-	"github.com/solution-labs/tools/toolserror"
 )
 
 func Client(ctx context.Context, projectID string) (client *firestore.Client, err error) {
@@ -11,7 +10,7 @@ func Client(ctx context.Context, projectID string) (client *firestore.Client, er
 	client, err = firestore.NewClient(ctx, projectID)
 
 	if err != nil {
-		return nil, toolserror.Wrap("firestore:Client", err)
+		return nil, err
 	}
 
 	return client, nil
