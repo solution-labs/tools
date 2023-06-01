@@ -81,12 +81,12 @@ func Connect(dbc DatabaseConfiguration) (*sql.DB, error) {
 
 // ConnectIP via IP Address
 func ConnectIP(dbc DatabaseConfiguration) (*sql.DB, error) {
-	return _mysqlConnect(fmt.Sprintf("%s:%s@tcp(%s):3306)/%s?parseTime=true&timeout=5s", dbc.Username, dbc.Password, dbc.PublicIP, dbc.Database))
+	return _mysqlConnect(fmt.Sprintf("%s:%s@tcp(%s:3306))/%s?parseTime=true&timeout=5s", dbc.Username, dbc.Password, dbc.PublicIP, dbc.Database))
 }
 
 // ConnectPrivateIP via IP Address
 func ConnectPrivateIP(dbc DatabaseConfiguration) (*sql.DB, error) {
-	return _mysqlConnect(fmt.Sprintf("%s:%s@tcp(%s):3306)/%s?parseTime=true&timeout=5s", dbc.Username, dbc.Password, dbc.PrivateIP, dbc.Database))
+	return _mysqlConnect(fmt.Sprintf("%s:%s@tcp(%s:3306))/%s?parseTime=true&timeout=5s", dbc.Username, dbc.Password, dbc.PrivateIP, dbc.Database))
 }
 
 func _mysqlPath(dbc DatabaseConfiguration) string {
