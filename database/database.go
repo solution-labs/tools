@@ -38,9 +38,7 @@ func CredentialsFromSecretManagerPath(ctx context.Context, secret string) (dbc D
 		return dbc, fmt.Errorf("failed to get secret version: %w", err)
 	}
 
-	credentals := DatabaseConfiguration{}
-
-	err = json.Unmarshal(result.Payload.Data, &credentals)
+	err = json.Unmarshal(result.Payload.Data, &dbc)
 
 	if err != nil {
 		return dbc, err
