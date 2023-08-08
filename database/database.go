@@ -5,12 +5,19 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 	"os"
 	"time"
 )
+
+var ErrGettingDataCredentials = errors.New("unexpected error reading credentials from secret")
+var ErrDatabaseConnection = errors.New("unexpected error connecting to the database")
+var ErrDatabaseReading = errors.New("unexpected error reading from the database")
+var ErrDatabaseInsert = errors.New("unexpected error saving to the database")
+var ErrDatabaseDelete = errors.New("unexpected error deleting from the database")
 
 type DatabaseConfiguration struct {
 	Host      string `json:"host"`
@@ -119,7 +126,7 @@ func _mysqlConnect(dbString string) (*sql.DB, error) {
 func _sqlConnectionConfig(link *sql.DB) {
 	_, _ = link.Exec("SET time_zone = 'Europe/London'")
 	// source: https://www.alexedwards.net/blog/configuring-sqldb
-	link.SetMaxOpenConns(5)
+	//link.SetMaxOpenConns(5) // Caused bottle neck on larger traffic site
 	link.SetConnMaxIdleTime(2)
 	link.SetConnMaxLifetime(1 * time.Hour)
 }

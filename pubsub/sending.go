@@ -4,7 +4,7 @@ import (
 	"cloud.google.com/go/pubsub"
 	"context"
 	"encoding/json"
-	"github.com/solution-labs/tools/toolserror"
+	"fmt"
 )
 
 type PBMessage struct {
@@ -19,14 +19,14 @@ func SendMessage(ctx context.Context, pb PBMessage) (pr string, err error) {
 
 	client, err := pubsub.NewClient(ctx, pb.ProjectID)
 	if err != nil {
-		return pr, toolserror.Wrap("pubsub:SendMessage: %w", err)
+		return pr, fmt.Errorf("pubsub:SendMessage: %w", err)
 	}
 
 	topic := client.Topic(pb.Topic)
 
 	dataJson, err := json.Marshal(pb.Message)
 	if err != nil {
-		return pr, toolserror.Wrap("pubsub:SendMessage:Json: %w", err)
+		return pr, fmt.Errorf("pubsub:SendMessage:Json: %w", err)
 	}
 
 	msg := &pubsub.Message{
@@ -36,7 +36,7 @@ func SendMessage(ctx context.Context, pb PBMessage) (pr string, err error) {
 	}
 
 	if pr, err = topic.Publish(ctx, msg).Get(ctx); err != nil {
-		return pr, toolserror.Wrap("pubsub:SendMessage:Publish: %w", err)
+		return pr, fmt.Errorf("pubsub:SendMessage:Publish: %w", err)
 	}
 
 	return pr, nil

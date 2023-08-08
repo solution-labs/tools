@@ -3,7 +3,9 @@ package pubsub
 import (
 	"encoding/base64"
 	"encoding/json"
-	"github.com/solution-labs/tools/toolserror"
+	"errors"
+	"fmt"
+	"github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"strings"
@@ -18,6 +20,8 @@ type PubSubMessage struct {
 	Subscription string
 }
 
+var ErrMissingDataBody = errors.New("missing data body")
+
 // ReadMessageFromPost takes the HTTP request feed and returns PubSubMessage struct
 // converts time string to time object
 func ReadMessageFromPost(r *http.Request) (message PubSubMessage, err error) {
@@ -25,7 +29,7 @@ func ReadMessageFromPost(r *http.Request) (message PubSubMessage, err error) {
 	body, _ := io.ReadAll(r.Body)
 
 	if len(body) == 0 {
-		return message, toolserror.Wrap("pubsub:ReadMessageFromPost:[Missing Body]", err)
+		return message, ErrMissingDataBody
 	}
 
 	return ReadMessageFromByte(body)
@@ -53,12 +57,12 @@ func ReadMessageFromByte(body []byte) (message PubSubMessage, err error) {
 	err = json.Unmarshal(body, &msg)
 
 	if err != nil {
-		return message, toolserror.Wrap("pubsub:ReadMessage:", err)
+		return message, fmt.Errorf("pubsub:ReadMessage: %w", err)
 	}
 
 	b4d, err := base64.StdEncoding.DecodeString(msg.Message.Data)
 	if err != nil {
-		return message, toolserror.Wrap("pubsub:ReadMessage:decode", err)
+		return message, fmt.Errorf("pubsub:ReadMessage:decode %w", err)
 	}
 	message.Data = string(b4d)
 	message.Attributes = msg.Message.Attributes
@@ -70,7 +74,7 @@ func ReadMessageFromByte(body []byte) (message PubSubMessage, err error) {
 
 	message.PublishTime, err = time.Parse("2006-01-02 15:04:05", msg.Message.PublishTime)
 	if err != nil {
-		toolserror.Warning("pubsub:ReadMessage:PublishTime", err)
+		logrus.Warn("pubsub:ReadMessage:PublishTime", err)
 	}
 
 	return message, nil
